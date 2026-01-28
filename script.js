@@ -18,6 +18,13 @@ const addSubjectBtn = document.getElementById("addSubjectBtn");
 const noDataMsg = document.getElementById("noDataMsg");
 const tabBtns = document.querySelectorAll(".graph-tabs button");
 
+// modal
+const timeModal = document.getElementById("timeModal");
+const hourInput = document.getElementById("hourInput");
+const minuteInput = document.getElementById("minuteInput");
+const cancelTimeBtn = document.getElementById("cancelTimeBtn");
+const setTimeBtn = document.getElementById("setTimeBtn");
+
 // ===== 設定 =====
 const defaultSubjects = ["数学","国語","英語","理科","社会"];
 const settings = JSON.parse(localStorage.getItem("settings")) || {
@@ -28,7 +35,6 @@ const settings = JSON.parse(localStorage.getItem("settings")) || {
 // ===== 状態 =====
 let seconds = 0;
 let totalSeconds = 0;
-let timerSet = false;
 let running = false;
 let timerId = null;
 let currentRange = "month";
@@ -64,6 +70,111 @@ addSubjectBtn.onclick = () => {
   newSubjectInput.value = "";
 };
 
+// ===== タイマー描画 =====
+function drawTimer() {
+  tctx.clearRect(0, 0, 260, 260);
+
+  const cx = 130;
+  const cy = 130;
+  const r = 110;
+
+  // 背景円
+  tctx.lineWidth = 10;
+  tctx.strokeStyle = "#ddd";
+  tctx.beginPath();
+  tctx.arc(cx, cy, r, 0, Math.PI * 2);
+  tctx.stroke();
+
+  // 進捗円（タイマーのみ）
+  if (settings.mode === "timer" && totalSeconds > 0) {
+    const ratio = seconds / totalSeconds;
+    tctx.strokeStyle = "#4285f4";
+    tctx.beginPath();
+    tctx.arc(
+      cx,
+      cy,
+      r,
+      -Math.PI / 2,
+      -Math.PI / 2 + Math.PI * 2 * ratio
+    );
+    tctx.stroke();
+  }
+
+  // 時間表示
+  const s = Math.max(seconds, 0);
+  const mm = String(Math.floor(s / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+
+  tctx.fillStyle = "#000";
+  tctx.font = "32px Arial";
+  tctx.textAlign = "center";
+  tctx.textBaseline = "middle";
+  tctx.fillText(`${mm}:${ss}`, cx, cy);
+}
+
+// ===== タイマー制御 =====
+function startTimer() {
+  if (running) return;
+
+  // ★ 正しいモード判定
+  if (settings.mode === "timer" && totalSeconds === 0) {
+    timeModal.style.display = "flex";
+    return;
+  }
+
+  running = true;
+  timerId = setInterval(() => {
+    seconds += settings.mode === "timer" ? -1 : 1;
+
+    if (settings.mode === "timer" && seconds <= 0) {
+      seconds = 0;
+      stopTimer();
+    }
+    drawTimer();
+  }, 1000);
+
+  updateButtons();
+}
+
+function stopTimer() {
+  running = false;
+  clearInterval(timerId);
+  updateButtons();
+}
+
+function resetTimer() {
+  stopTimer();
+  seconds = settings.mode === "timer" ? totalSeconds : 0;
+  drawTimer();
+}
+
+// ===== ボタン表示 =====
+function updateButtons() {
+  startBtn.style.display = running ? "none" : "inline-block";
+  stopBtn.style.display = running ? "inline-block" : "none";
+  resetBtn.style.display = running ? "inline-block" : "none";
+  recordBtn.style.display = running ? "inline-block" : "none";
+}
+
+// ===== 記録保存 =====
+function saveRecord() {
+  const used = settings.mode === "timer"
+    ? totalSeconds - seconds
+    : seconds;
+
+  if (used <= 0) return;
+
+  const rec = JSON.parse(localStorage.getItem("records")) || {};
+  const today = new Date().toISOString().slice(0, 10);
+  const sub = subjectSelect.value;
+
+  if (!rec[today]) rec[today] = {};
+  rec[today][sub] = (rec[today][sub] || 0) + Math.floor(used / 60);
+
+  localStorage.setItem("records", JSON.stringify(rec));
+  drawGraphs(currentRange);
+}
+
 // ===== 記録判定 =====
 function hasAnyRecord() {
   const rec = JSON.parse(localStorage.getItem("records")) || {};
@@ -92,13 +203,17 @@ function getRangeData(range) {
   const rec = JSON.parse(localStorage.getItem("records")) || {};
   const now = new Date();
   const result = {};
+
   for (const d in rec) {
     const date = new Date(d);
     const diff = (now - date) / (1000 * 60 * 60 * 24);
+
     if (
       (range === "day" && diff < 1) ||
       (range === "week" && diff < 7) ||
-      (range === "month" && date.getMonth() === now.getMonth())
+      (range === "month" &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear())
     ) {
       for (const s in rec[d]) {
         result[s] = (result[s] || 0) + rec[d][s];
@@ -122,11 +237,9 @@ function drawBar(range) {
     bctx.fillStyle = getColor(s, i);
     bctx.fillRect(x, y, 40, h);
 
-    const hh = Math.floor(v / 60);
-    const mm = v % 60;
     bctx.fillStyle = "#000";
     bctx.font = "11px Arial";
-    bctx.fillText(`${hh > 0 ? hh + "h" : ""}${mm}m`, x, y - 4);
+    bctx.fillText(`${v}m`, x, y - 4);
     bctx.fillText(s, x, barCanvas.height - 8);
   });
 }
@@ -146,17 +259,6 @@ function drawPie(range) {
     pctx.moveTo(110, 110);
     pctx.arc(110, 110, 100, angle, angle + slice);
     pctx.fill();
-
-    const percent = Math.round((v / total) * 100);
-    const mid = angle + slice / 2;
-    pctx.fillStyle = "#000";
-    pctx.font = "12px Arial";
-    pctx.fillText(
-      `${percent}%`,
-      110 + Math.cos(mid) * 60,
-      110 + Math.sin(mid) * 60
-    );
-
     angle += slice;
   });
 }
@@ -171,5 +273,41 @@ tabBtns.forEach(btn => {
   };
 });
 
+// ===== モード切替（★重要バグ修正）=====
+modeSelect.value = settings.mode;
+modeSelect.onchange = () => {
+  settings.mode = modeSelect.value;
+  localStorage.setItem("settings", JSON.stringify(settings));
+
+  stopTimer();
+  totalSeconds = 0;
+  seconds = settings.mode === "timer" ? 0 : 0;
+
+  drawTimer();
+  updateButtons();
+};
+
+// ===== モーダル =====
+setTimeBtn.onclick = () => {
+  totalSeconds =
+    Number(hourInput.value) * 3600 +
+    Number(minuteInput.value) * 60;
+  seconds = totalSeconds;
+  timeModal.style.display = "none";
+  drawTimer();
+};
+
+cancelTimeBtn.onclick = () => {
+  timeModal.style.display = "none";
+};
+
+// ===== ボタン =====
+startBtn.onclick = startTimer;
+stopBtn.onclick = stopTimer;
+resetBtn.onclick = resetTimer;
+recordBtn.onclick = saveRecord;
+
 // ===== 初期化 =====
+drawTimer();
 drawGraphs("month");
+updateButtons();
