@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Study Focus Timer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Study Focus Timer</h1>
+
+<div class="container">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="timer-card">
+      <canvas id="timerCanvas" width="260" height="260"></canvas>
+
+      <div class="buttons">
+        <button id="startBtn">▶</button>
+        <button id="stopBtn">⏸</button>
+        <button id="resetBtn">↺</button>
+        <button id="recordBtn">✔</button>
+      </div>
+    </div>
+
+    <div class="settings">
+      <label>
+        モード
+        <select id="modeSelect">
+          <option value="timer">タイマー</option>
+          <option value="stopwatch">ストップウォッチ</option>
+        </select>
+      </label>
+
+      <label>
+        教科
+        <select id="subjectSelect"></select>
+      </label>
+
+      <div class="subject-add">
+        <input id="newSubjectInput" placeholder="教科を追加">
+        <button id="addSubjectBtn">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="graph-card">
+
+      <div class="graph-tabs">
+        <button data-range="day">今日</button>
+        <button data-range="week">今週</button>
+        <button data-range="month" class="active">今月</button>
+      </div>
+
+      <div id="noDataMsg">まだ学習記録がありません</div>
+
+      <h3 class="graph-title">学習時間（量）</h3>
+      <canvas id="barChart" width="320" height="180"></canvas>
+
+      <h3 class="graph-title">教科別割合</h3>
+      <canvas id="pieChart" width="220" height="220"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- 時間設定モーダル -->
+<div id="timeModal" class="modal">
+  <div class="modal-content">
+    <h2>タイマー時間設定</h2>
+    <div class="time-inputs">
+      <input type="number" id="hourInput" min="0" value="0"> 時間
+      <input type="number" id="minuteInput" min="0" max="59" value="25"> 分
+    </div>
+    <div class="modal-buttons">
+      <button id="cancelTimeBtn">キャンセル</button>
+      <button id="setTimeBtn">設定</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
